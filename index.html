@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -22,6 +24,7 @@
         #next-btn { background-color: #4caf50; color: white; }
         @media (min-width: 600px) { .control-btns { flex-direction: row; } #undo-btn, #next-btn { flex: 1; } }
         #loading-msg { color: #666; font-style: italic; }
+        #progress { font-size: 0.9em; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -30,14 +33,13 @@
     <h2>Xếp Câu Tagalog</h2>
     <div id="loading-msg">Đang lấy dữ liệu từ máy chủ...</div>
     <select id="sheet-select" style="display:none;"></select>
+    <div id="progress">Câu số: 0/0</div>
     <hr>
-
     <div id="vietnamese-hint">Đang tải...</div>
     <div id="answer-zone"></div>
     <div id="pool"></div>
     <div id="result"></div>
     <div id="extra-hint" style="margin-top: 10px; color: #666; font-style: italic; font-size: 0.9em;"></div>
-    
     <div class="control-btns">
         <button id="undo-btn" onclick="undo()">Hoàn tác (Undo) ↩️</button>
         <button id="next-btn" style="display:none;" onclick="nextQuestion()">Câu tiếp theo ➡️</button>
@@ -47,11 +49,10 @@
 <script>
     let workbook, currentData = [];
     let correctAnswer = "", userSequence = [];
+    let currentIndex = 0; // BIẾN ĐẾM ĐỂ CHẠY THEO THỨ TỰ
 
-    // TỰ ĐỘNG CHẠY KHI MỞ TRANG WEB
     window.addEventListener('DOMContentLoaded', () => {
-        const fileName = 'data.xlsx'; // Đảm bảo file này có trên GitHub của bạn
-        
+        const fileName = 'data.xlsx'; 
         fetch(fileName)
             .then(response => {
                 if (!response.ok) throw new Error("Không tìm thấy file " + fileName);
@@ -60,12 +61,10 @@
             .then(data => {
                 const arrayBuffer = new Uint8Array(data);
                 workbook = XLSX.read(arrayBuffer, {type: 'array'});
-                
                 const select = document.getElementById('sheet-select');
                 select.innerHTML = workbook.SheetNames.map(name => `<option value="${name}">${name}</option>`).join('');
                 select.style.display = 'block';
                 document.getElementById('loading-msg').style.display = 'none';
-                
                 loadSheet(workbook.SheetNames[0]);
             })
             .catch(error => {
@@ -81,23 +80,23 @@
 
     function loadSheet(name) {
         const sheet = workbook.Sheets[name];
-        currentData = XLSX.utils.sheet_to_json(sheet, {header: 1}).slice(1, 100);
+        // Lấy từ hàng 2 đến 51 (tương ứng chỉ số 1 đến 50 trong mảng)
+        currentData = XLSX.utils.sheet_to_json(sheet, {header: 1}).slice(1, 51);
+        currentIndex = 0; // Reset về câu đầu tiên khi đổi sheet
         nextQuestion();
     }
 
     function nextQuestion() {
         if (!currentData || currentData.length === 0) return;
-        let randomRow;
-        let attempts = 0;
-        do {
-            randomRow = currentData[Math.floor(Math.random() * currentData.length)];
-            attempts++;
-        } while ((!randomRow || !randomRow[4] || randomRow[4].toString().trim() === "") && attempts < 20);
 
-        if (!randomRow || !randomRow[4]) {
-            document.getElementById('vietnamese-hint').innerText = "Hết dữ liệu hoặc lỗi file!";
-            return;
+        if (currentIndex >= currentData.length) {
+            currentIndex = 0;
+            alert("Bạn đã hoàn thành 50 câu! Chúng ta sẽ bắt đầu lại từ đầu nhé.");
         }
+
+        let randomRow = currentData[currentIndex];
+        
+        document.getElementById('progress').innerText = `Câu số: ${currentIndex + 1} / ${currentData.length}`;
 
         document.getElementById('next-btn').style.display = 'none';
         document.getElementById('undo-btn').style.display = 'block';
@@ -105,10 +104,21 @@
         document.getElementById('answer-zone').innerHTML = "";
         userSequence = [];
 
-        document.getElementById('vietnamese-hint').innerText = randomRow[0] || "---";
-        correctAnswer = randomRow[4].toString().trim();
-        const extraInfo = randomRow[2] || ""; 
+        // HIỆN THỊ GỢI Ý: Lấy ở cột D (chỉ số 3) nếu có, không thì hiện "Câu hỏi"
+        document.getElementById('vietnamese-hint').innerText = randomRow[0] || "Hãy xếp câu sau:";
+
+        // QUAN TRỌNG: Lấy đáp án từ cột E (chỉ số 4)
+        correctAnswer = (randomRow[4] || "").toString().trim();
+        
+        // Gợi ý thêm lấy từ cột F (chỉ số 5) nếu có
+        const extraInfo = randomRow[5] || ""; 
         document.getElementById('extra-hint').innerText = extraInfo ? "Gợi ý: " + extraInfo : "";
+
+        if (correctAnswer === "") {
+            currentIndex++;
+            nextQuestion();
+            return;
+        }
 
         let words = correctAnswer.replace(/[.,?!]/g, "").split(" ").filter(w => w !== "");
         let shuffled = [...words].sort(() => Math.random() - 0.5);
@@ -128,6 +138,8 @@
             };
             pool.appendChild(btn);
         });
+
+        currentIndex++;
     }
 
     function undo() {
@@ -178,6 +190,83 @@
             pool.appendChild(btn);
         });
     }
+</script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
 </script>
 </body>
 </html>
